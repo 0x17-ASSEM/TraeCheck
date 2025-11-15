@@ -60,7 +60,7 @@ server.registerTool(
       }
       
       // Analyze test files
-      if (f.filename.toLowerCase().includes("test") && f.status === "deleted") {
+      if (f.filename.toLowerCase().includes("test") && f.status === "removed") {
         comments.push({
           path: f.filename,
           body: "Test file deleted. Ensure functionality is still covered by remaining tests.",
