@@ -4,5 +4,5 @@ import (
 
 func main() {
 	fmt.println("H")
-	fmt.println(s)
+	fmt.println(ssssssssssssss)
 }
