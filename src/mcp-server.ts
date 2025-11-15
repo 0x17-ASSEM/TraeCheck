@@ -34,17 +34,18 @@ server.registerTool(
     }),
   },
   async (args: { owner: string; repo: string; prNumber: number; githubToken: string; geminiApiKey?: string }) => {
-    const { owner, repo, prNumber, githubToken, geminiApiKey } = args;
-    
-    const octokit = new Octokit({ auth: githubToken });
-    
-    // Fetch comprehensive PR data
-    const [prData, files] = await Promise.all([
-      octokit.pulls.get({ owner, repo, pull_number: prNumber }),
-      octokit.pulls.listFiles({ owner, repo, pull_number: prNumber }),
-    ]);
-    
-    const pr = prData.data;
+    try {
+      const { owner, repo, prNumber, githubToken, geminiApiKey } = args;
+      
+      const octokit = new Octokit({ auth: githubToken });
+      
+      // Fetch comprehensive PR data
+      const [prData, files] = await Promise.all([
+        octokit.pulls.get({ owner, repo, pull_number: prNumber }),
+        octokit.pulls.listFiles({ owner, repo, pull_number: prNumber }),
+      ]);
+      
+      const pr = prData.data;
     
     // Build comprehensive PR context for AI analysis
     let prContext = `# Pull Request Analysis Request\n\n`;
@@ -103,36 +104,52 @@ Please provide:
 
 Format your response as a comprehensive markdown document that will be posted as a PR comment. Be thorough, constructive, and professional.`;
     
-    const result = await model.generateContent(prompt);
-    const aiAnalysis = result.response.text();
-    
-    // Parse AI response to extract structured comments (if possible)
-    // For now, we'll use the full analysis as the summary
-    const comments: { path: string; body: string; position?: number }[] = [];
-    
-    // Try to extract file-specific comments from AI response
-    const fileCommentRegex = /(?:^|\n)(?:###?|File:|File\s+path:)\s*([^\n]+)\s*\n([\s\S]*?)(?=\n(?:###?|File:|File\s+path:)|$)/gi;
-    let match;
-    while ((match = fileCommentRegex.exec(aiAnalysis)) !== null) {
-      const filePath = match[1].trim();
-      const comment = match[2].trim();
-      if (filePath && comment) {
-        comments.push({
-          path: filePath,
-          body: comment,
-        });
+      console.log("Calling Gemini API...");
+      const result = await model.generateContent(prompt);
+      const aiAnalysis = result.response.text();
+      console.log("Gemini analysis received, length:", aiAnalysis.length);
+      
+      // Parse AI response to extract structured comments (if possible)
+      // For now, we'll use the full analysis as the summary
+      const comments: { path: string; body: string; position?: number }[] = [];
+      
+      // Try to extract file-specific comments from AI response
+      const fileCommentRegex = /(?:^|\n)(?:###?|File:|File\s+path:)\s*([^\n]+)\s*\n([\s\S]*?)(?=\n(?:###?|File:|File\s+path:)|$)/gi;
+      let match;
+      while ((match = fileCommentRegex.exec(aiAnalysis)) !== null) {
+        const filePath = match[1].trim();
+        const comment = match[2].trim();
+        if (filePath && comment) {
+          comments.push({
+            path: filePath,
+            body: comment,
+          });
+        }
       }
+      
+      const structuredContent = {
+        summary: aiAnalysis, // Full AI analysis as the summary
+        comments: comments.length > 0 ? comments : [], // File-specific comments if extracted
+      };
+      
+      console.log("Returning structured content, summary length:", structuredContent.summary.length);
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(structuredContent) }],
+        structuredContent,
+      };
+    } catch (error: any) {
+      console.error("Error in analyze_pr tool:", error);
+      const errorMessage = error.message || String(error);
+      const structuredContent = {
+        summary: `Error during PR analysis: ${errorMessage}`,
+        comments: [],
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(structuredContent) }],
+        structuredContent,
+      };
     }
-    
-    const structuredContent = {
-      summary: aiAnalysis, // Full AI analysis as the summary
-      comments: comments.length > 0 ? comments : [], // File-specific comments if extracted
-    };
-    
-    return {
-      content: [{ type: "text", text: JSON.stringify(structuredContent) }],
-      structuredContent,
-    };
   }
 );
 

@@ -51,6 +51,7 @@ async function run() {
     }
 
     // Call the analyze_pr tool via MCP
+    console.log("Calling analyze_pr tool...");
     const result = await client.callTool({
       name: "analyze_pr",
       arguments: {
@@ -62,6 +63,8 @@ async function run() {
       },
     });
 
+    console.log("Tool call result:", JSON.stringify(result, null, 2));
+
     // Extract structured content from MCP response
     const structuredContent = result.structuredContent as {
       summary: string;
@@ -69,7 +72,9 @@ async function run() {
     };
 
     if (!structuredContent) {
-      throw new Error("MCP server did not return structured content");
+      console.error("Result object:", result);
+      console.error("Result keys:", Object.keys(result));
+      throw new Error(`MCP server did not return structured content. Result: ${JSON.stringify(result)}`);
     }
 
     const { summary } = structuredContent;
