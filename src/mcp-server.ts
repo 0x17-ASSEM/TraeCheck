@@ -86,7 +86,8 @@ server.registerTool(
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    // Use gemini-1.5-flash (fast and efficient for PR analysis)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `You are an expert code reviewer. Analyze the following Pull Request and provide a comprehensive review.
 
