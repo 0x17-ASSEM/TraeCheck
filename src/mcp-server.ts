@@ -88,7 +88,7 @@ server.registerTool(
     const genAI = new GoogleGenerativeAI(apiKey);
     // Use Gemini 2.5 Flash - try the most common model names
     // Common names: "gemini-2.0-flash-exp", "gemini-2.5-flash", "gemini-2.0-flash"
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     const prompt = `You are an expert code reviewer. Analyze the following Pull Request and provide a comprehensive review.
 
