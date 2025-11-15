@@ -3,5 +3,5 @@ import (
 )
 
 func main() {
-	fmt.pRINTLN("hELO")
+	fmt.pRINtLN("hELO")
 }
