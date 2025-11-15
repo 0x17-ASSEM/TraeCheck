@@ -1,0 +1,18 @@
+{
+  "name": "trae-ai-pr-reviewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start:server": "node dist/mcp-server.js",
+    "action": "node dist/action.js"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@octokit/rest": "^22.0.1",
+    "@types/node": "^20.19.25",
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
+  }
+}
