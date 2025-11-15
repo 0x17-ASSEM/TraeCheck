@@ -14,5 +14,8 @@
     "@types/node": "^20.19.25",
     "typescript": "^5.9.3",
     "zod": "^3.25.76"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0"
   }
 }

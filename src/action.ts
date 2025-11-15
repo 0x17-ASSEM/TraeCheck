@@ -44,6 +44,12 @@ async function run() {
 
     console.log("Connected to MCP server");
 
+    // Get Gemini API key from environment
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is required for AI analysis");
+    }
+
     // Call the analyze_pr tool via MCP
     const result = await client.callTool({
       name: "analyze_pr",
@@ -52,6 +58,7 @@ async function run() {
         repo,
         prNumber,
         githubToken: token,
+        geminiApiKey,
       },
     });
 
@@ -65,33 +72,20 @@ async function run() {
       throw new Error("MCP server did not return structured content");
     }
 
-    const { summary, comments } = structuredContent;
+    const { summary } = structuredContent;
 
-    // Post summary comment on PR
+    // Post comprehensive AI analysis as PR comment
     try {
       await octokit.issues.createComment({
         owner,
         repo,
         issue_number: prNumber,
-        body: summary,
+        body: `## 🤖 AI-Powered PR Analysis\n\n${summary}`,
       });
+      console.log("AI analysis posted successfully");
     } catch (error: any) {
-      console.error(`Failed to post summary comment: ${error.message || error}`);
-    }
-
-    // Post review comments
-    if (comments.length > 0) {
-      try {
-        await octokit.pulls.createReview({
-          owner,
-          repo,
-          pull_number: prNumber,
-          event: "COMMENT",
-          body: comments.map((c) => `**${c.path}**: ${c.body}`).join("\n\n"),
-        });
-      } catch (error: any) {
-        console.error(`Failed to post review: ${error.message || error}`);
-      }
+      console.error(`Failed to post AI analysis comment: ${error.message || error}`);
+      throw error;
     }
 
     // Clean up
