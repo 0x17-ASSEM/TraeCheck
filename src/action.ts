@@ -1,7 +1,9 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { Octokit } from "@octokit/rest";
 
 /**
- * GitHub Action entry: listens to PR events, runs analysis using MCP client/server if needed,
+ * GitHub Action entry: listens to PR events, runs analysis using MCP client/server,
  * and posts review comments back to the PR.
  */
 async function run() {
@@ -20,43 +22,80 @@ async function run() {
     }
 
     const prNumber = Number(prNumberEnv);
+    if (isNaN(prNumber) || prNumber <= 0 || !Number.isInteger(prNumber)) {
+      throw new Error(`Invalid PR number: ${prNumberEnv}. Must be a positive integer.`);
+    }
+
     const octokit = new Octokit({ auth: token });
 
-    // Fetch PR files and diffs
-    const { data: files } = await octokit.pulls.listFiles({ owner, repo, pull_number: prNumber });
+    // Connect to MCP server using stdio transport
+    const client = new Client(
+      { name: "pr-reviewer-client", version: "0.1.0" },
+      { capabilities: {} }
+    );
 
-    // Very basic heuristic analysis placeholder
-    const comments: { path: string; body: string; position?: number }[] = [];
+    const transport = new StdioClientTransport({
+      command: "node",
+      args: ["./dist/mcp-server.js"],
+    });
 
-    for (const f of files) {
-      if ((f.patch || "").length > 2000) {
-        comments.push({
-          path: f.filename,
-          body: "Large diff detected. Consider breaking changes into smaller commits for easier review.",
-        });
-      }
-      if (f.status === "modified" && f.filename.toLowerCase().includes("config")) {
-        comments.push({
-          path: f.filename,
-          body: "Configuration file modified. Ensure environment-specific values are documented and secrets are not committed.",
-        });
-      }
-    }
+    await transport.start();
+    await client.connect(transport);
 
-    // Post a summary comment on PR
-    const summaryBody = `Automated PR analysis found ${comments.length} suggestion(s).`;
-    await octokit.issues.createComment({ owner, repo, issue_number: prNumber, body: summaryBody });
+    console.log("Connected to MCP server");
 
-    // Optionally post review comments using createReview; here we post a single consolidated review
-    if (comments.length > 0) {
-      await octokit.pulls.createReview({
+    // Call the analyze_pr tool via MCP
+    const result = await client.callTool({
+      name: "analyze_pr",
+      arguments: {
         owner,
         repo,
-        pull_number: prNumber,
-        event: "COMMENT",
-        body: comments.map((c) => `- ${c.path}: ${c.body}`).join("\n"),
-      });
+        prNumber,
+        githubToken: token,
+      },
+    });
+
+    // Extract structured content from MCP response
+    const structuredContent = result.structuredContent as {
+      summary: string;
+      comments: { path: string; body: string; position?: number }[];
+    };
+
+    if (!structuredContent) {
+      throw new Error("MCP server did not return structured content");
     }
+
+    const { summary, comments } = structuredContent;
+
+    // Post summary comment on PR
+    try {
+      await octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNumber,
+        body: summary,
+      });
+    } catch (error: any) {
+      console.error(`Failed to post summary comment: ${error.message || error}`);
+    }
+
+    // Post review comments
+    if (comments.length > 0) {
+      try {
+        await octokit.pulls.createReview({
+          owner,
+          repo,
+          pull_number: prNumber,
+          event: "COMMENT",
+          body: comments.map((c) => `**${c.path}**: ${c.body}`).join("\n\n"),
+        });
+      } catch (error: any) {
+        console.error(`Failed to post review: ${error.message || error}`);
+      }
+    }
+
+    // Clean up
+    await transport.close();
 
     console.log("PR analysis completed.");
   } catch (err) {
