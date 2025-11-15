@@ -39,7 +39,7 @@ async function run() {
       args: ["./dist/mcp-server.js"],
     });
 
-    await transport.start();
+    // connect() automatically calls start() on the transport
     await client.connect(transport);
 
     console.log("Connected to MCP server");
