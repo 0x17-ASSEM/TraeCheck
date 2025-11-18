@@ -3,6 +3,6 @@ import (
 )
 
 func main() {
-	fmt.println("H")
-	fmt.println(s)dddddddddddddddd
+	fmt.printsssln("H")
+	fmt.println(s)ddddddddddddddddd23rdq
 }
